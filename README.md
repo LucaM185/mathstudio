@@ -151,3 +151,14 @@ npm run test:settings # Settings tab: API key save/test/remove, preview quality 
   first, the templates avoid the second, and the export sets fps inside the scene.
 * A render job that runs longer than 20 s (for example an endless loop in custom code) is
   aborted, and only that clip is marked as failed.
+
+## License
+
+MathStudio is free software, released under the [GNU Affero General Public License v3.0](LICENSE)
+(AGPL-3.0-only). You can use, study, change and share it. If you distribute a modified version, or
+run one as a service that people use over a network, you must publish its source code under the
+same license.
+
+Bundled third-party code and assets keep their own licenses: ManimGL and the example scenes under
+`engine/mathstudio_library/manim-assets/` are MIT-licensed. Content under non-commercial licenses
+(CC BY-NC-SA) is not part of this repository or its releases.

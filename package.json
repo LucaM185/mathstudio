@@ -8,6 +8,7 @@
     "url": "https://github.com/LucaM185/mathstudio.git"
   },
   "author": "MathStudio",
+  "license": "AGPL-3.0-only",
   "main": "electron/main.cjs",
   "private": true,
   "scripts": {
