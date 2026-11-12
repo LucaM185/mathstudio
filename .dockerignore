@@ -1,0 +1,21 @@
+# Docker context for packaging/linux (never ship secrets or the macOS venv)
+.env
+.env.*
+**/.env
+.claude
+node_modules
+dist
+release
+build-res
+engine/.venv
+engine/data
+engine/videos
+engine/imported_frames
+**/__pycache__
+tests/out
+*.mstudio
+release-*
+# CC BY-NC-SA (non-commercial) library content: kept locally, never published (see engine/library_imported.py)
+engine/mathstudio_library/non-commercial/
+engine/mathstudio_library/manim-assets/manimgl/3b1b-videos/
+engine/mathstudio_imports_nc.json

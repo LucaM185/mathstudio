@@ -1,0 +1,32 @@
+// Boot / error screen renders (stroke-drawn Σ, wordmark, stage, bar).   node tests/boot_screen.mjs
+import { _electron as electron } from 'playwright';
+import fs from 'fs'; import os from 'os'; import path from 'path';
+import { fileURLToPath } from 'url';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = path.join(ROOT, 'tests', 'out'); fs.mkdirSync(OUT, { recursive: true });
+const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-boot-'));
+const fails = []; const check = (c, m) => { console.log(c ? '   ✓' : '   ✗', m); if (!c) fails.push(m); };
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE'));
+Object.assign(env, { MATHSTUDIO_NO_AUTOSAVE: '1', MATHSTUDIO_HIDDEN: '1', MATHSTUDIO_DATA: path.join(TMP, 'data'), MATHSTUDIO_STARTUP_PROJECTS: '0' });
+const app = await electron.launch({ args: [ROOT], env, cwd: ROOT });
+const win = await app.firstWindow();
+await win.setViewportSize({ width: 1400, height: 860 });
+await win.waitForSelector('.topbar', { timeout: 60000 });
+const lib = await win.evaluate(() => { const s = window.__ms.store; window.__lib = s.getState().library; s.setState({ library: null, port: null }); return true; });
+await win.waitForSelector('[data-testid=boot]');
+check(/Starting ManimGL engine/.test(await win.innerText('.boot-stage')), 'stage 1: starting engine');
+await win.waitForTimeout(900);
+await win.screenshot({ path: path.join(OUT, 'boot_starting.png') });
+await win.evaluate(() => window.__ms.store.setState({ port: 1 }));
+await win.waitForTimeout(500);
+check(/Loading library/.test(await win.innerText('.boot-stage')), 'stage 2: loading library');
+await win.screenshot({ path: path.join(OUT, 'boot_library.png') });
+await win.evaluate(() => window.__ms.store.setState({ engineStatus: 'error', engineError: 'Engine exited before it was ready (code 1).' }));
+await win.waitForSelector('[data-testid=boot-error]');
+await win.screenshot({ path: path.join(OUT, 'boot_error.png') });
+await win.evaluate(() => window.__ms.store.setState({ engineStatus: 'ready', engineError: null, library: window.__lib }));
+await win.waitForSelector('.topbar');
+check(true, 'app returns after library loads');
+await app.close();
+if (fails.length) { console.log(`\n${fails.length} failed`); process.exit(1); }
+console.log('\nboot screen OK');

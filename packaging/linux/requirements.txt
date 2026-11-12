@@ -1,0 +1,7 @@
+# Engine dependencies for the bundled Linux Python (versions pinned by constraints.txt,
+# which mirrors engine/.venv on the dev Mac minus macOS-only packages).
+manimgl==1.7.2
+setuptools<81
+onnxruntime
+tokenizers
+huggingface_hub

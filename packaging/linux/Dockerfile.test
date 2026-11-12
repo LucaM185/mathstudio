@@ -1,0 +1,18 @@
+# Clean Ubuntu 24.04 x86_64 desktop-less box: install the built .deb with apt (which pulls only the
+# declared dependencies), add Xvfb + Mesa (software OpenGL) and Playwright, then run the tests.
+FROM --platform=linux/amd64 ubuntu:24.04
+# folder holding the built packages (packaging/linux/build.sh MS_RELEASE)
+ARG REL=release
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth nodejs npm ca-certificates fonts-dejavu-core libgl1-mesa-dri \
+    && rm -rf /var/lib/apt/lists/*
+COPY ${REL}/*.deb /tmp/pkg/
+RUN apt-get update && apt-get install -y /tmp/pkg/*.deb && rm -rf /var/lib/apt/lists/*
+RUN useradd -m tester
+WORKDIR /t
+RUN npm init -y >/dev/null && npm i --no-audit --no-fund playwright@1.49.1 >/dev/null
+COPY tests/linux_smoke.mjs tests/settings.mjs tests/linux_update.mjs /t/tests/
+COPY engine/tests /t/engine-tests
+COPY ${REL}/*.AppImage /t/
+RUN chmod +x /t/*.AppImage && chown -R tester /t
+USER tester

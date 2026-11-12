@@ -1,0 +1,75 @@
+# Linux x86_64 build (AppImage + .deb). Run via packaging/linux/build.sh, which builds everything
+# inside an amd64 Docker container and stages the Python bundle in build-res/ first.
+appId: app.mathstudio.ide
+productName: MathStudio
+copyright: MathStudio
+# the .deb (fpm) refuses to build without a homepage; placeholder until the project has a site
+extraMetadata:
+  homepage: https://mathstudio.local
+directories:
+  output: release
+  buildResources: packaging
+files:
+  - electron/**/*
+  - dist/**/*
+  - packaging/icon.png
+  - package.json
+# node_modules: electron-builder adds the production dependencies only (electron-updater + its
+# deps); everything the renderer uses is bundled into dist/ by Vite and lives in devDependencies.
+# never ship the developer's .env (API key): the app reads keys from Settings / ~/.config/MathStudio
+extraResources:
+  - from: build-res/engine
+    to: engine
+  - from: build-res/python
+    to: python
+  - from: build-res/models
+    to: models
+# Updates: GitHub Releases of package.json "repository" (owner/repo inferred). The CI uploads the
+# files itself (.github/workflows/release.yml); this only makes electron-builder write latest-linux.yml.
+publish:
+  - provider: github
+linux:
+  target:
+    - AppImage
+    - deb
+  executableName: mathstudio
+  icon: packaging/icon.png
+  category: Graphics
+  maintainer: MathStudio
+  vendor: MathStudio
+  synopsis: Visual IDE for ManimGL animations
+  description: >-
+    MathStudio is a visual editor for ManimGL animations: drag mobjects onto a timeline,
+    tune them without code, use an AI agent, and export videos or ManimGL code.
+    Python, ManimGL and ffmpeg are bundled.
+  desktop:
+    StartupWMClass: MathStudio
+# No version in the file names: the website's download button links to
+# github.com/<owner>/<repo>/releases/latest/download/MathStudio-x86_64.AppImage, and an AppImage
+# without a version in its name is replaced in place when it updates itself.
+appImage:
+  artifactName: MathStudio-x86_64.AppImage
+deb:
+  artifactName: MathStudio-amd64.deb
+  compression: xz
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+    - libgbm1
+    - libasound2 | libasound2t64
+    - libgl1
+    - libegl1
+    - fontconfig
+    - libpangocairo-1.0-0
+  fpm:
+    - --deb-suggests
+    - texlive-latex-extra
+    - --deb-suggests
+    - dvisvgm

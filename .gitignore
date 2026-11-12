@@ -1,0 +1,19 @@
+node_modules/
+dist/
+engine/.venv/
+engine/data/
+engine/__pycache__/
+engine/tests/__pycache__/
+tests/out/
+.env
+release/
+build-res/
+release-*/
+# CC BY-NC-SA (non-commercial) library content: kept locally, never published (see engine/library_imported.py)
+engine/mathstudio_library/non-commercial/
+engine/mathstudio_library/manim-assets/manimgl/3b1b-videos/
+engine/mathstudio_imports_nc.json
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
