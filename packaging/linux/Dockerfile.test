@@ -6,6 +6,11 @@ ARG REL=release
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends xvfb xauth nodejs npm ca-certificates fonts-dejavu-core libgl1-mesa-dri \
     && rm -rf /var/lib/apt/lists/*
+# what the app tells Linux users to install for Tex/Equation (studio_runtime's "LaTeX is not installed"
+# message), so the engine tests also check that advice works; ffmpeg/ffprobe are only used by the
+# tests to read exported videos back (the app itself uses its bundled ffmpeg)
+RUN apt-get update && apt-get install -y --no-install-recommends texlive-latex-extra texlive-science dvisvgm ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 COPY ${REL}/*.deb /tmp/pkg/
 RUN apt-get update && apt-get install -y /tmp/pkg/*.deb && rm -rf /var/lib/apt/lists/*
 RUN useradd -m tester

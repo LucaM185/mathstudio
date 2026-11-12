@@ -46,14 +46,17 @@ jobs:
       - uses: crazy-max/ghaction-github-runtime@v3
 
       - name: Build AppImage + .deb
+        timeout-minutes: 60
         env:
           MS_BUILDX_ARGS: --cache-from type=gha,scope=linux --cache-to type=gha,mode=max,scope=linux
         run: packaging/linux/build.sh
 
       - name: Test the packages in a clean Ubuntu 24.04
+        timeout-minutes: 75
         run: packaging/linux/test.sh
 
       - name: Test a real self-update (AppImage → newer AppImage)
+        timeout-minutes: 45
         env:
           MS_BUILDX_ARGS: --cache-from type=gha,scope=linux
         run: packaging/linux/test-update.sh

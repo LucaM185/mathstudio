@@ -7,7 +7,10 @@ REL="${MS_RELEASE:-release}"   # where build.sh put the packages
 IMAGE="mathstudio-linux-test${MS_RELEASE:+-$(basename "$REL")}"
 OUT="$PWD/$REL/test-out"; mkdir -p "$OUT"; chmod 777 "$OUT"
 docker buildx build --platform linux/amd64 -f packaging/linux/Dockerfile.test --build-arg "REL=$REL" -t "$IMAGE" --load . || exit 1
-run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out "$IMAGE" bash -lc "$1"; }
+# every step gets a time limit (MS_STEP_TIMEOUT, seconds): on expiry SIGABRT makes Python's
+# faulthandler print where every thread is stuck, instead of the CI job silently hanging for hours
+T="${MS_STEP_TIMEOUT:-1500}"
+run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out -e PYTHONUNBUFFERED=1 -e PYTHONFAULTHANDLER=1 "$IMAGE" timeout -s ABRT -k 30 "$T" bash -lc "$1"; }
 fail=0
 echo "== engine tests with the bundled Python (.deb install)"
 run 'cp -r /opt/MathStudio/resources/engine /tmp/eng && cp -r /t/engine-tests /tmp/eng/tests && cd /tmp/eng && xvfb-run -a -s "-screen 0 1920x1080x24" /opt/MathStudio/resources/python/bin/python3 -W ignore tests/test_engine.py --export' || fail=1
