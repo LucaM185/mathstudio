@@ -111,6 +111,47 @@ try:
         return _full_tex_to_svg(full_tex, compiler, message)
 
     _tfw.full_tex_to_svg = _checked_full_tex_to_svg
+
+    # ManimGL's default preamble loads 16 packages; dsfont, calligra, wasysym... only come with big
+    # extras (Ubuntu texlive-fonts-extra, not in BasicTeX), and one missing .sty fails EVERY formula.
+    # Drop the \usepackage lines whose package isn't installed (one kpsewhich call, cached): plain
+    # maths works with a minimal TeX, only the few commands of a missing package (\mathds...) fail.
+    import re as _re
+    import subprocess as _sp
+    _sty_ok = {}
+    _USEPKG = _re.compile(r"^\s*\\usepackage(?:\[[^\]]*\])?\{([^}]+)\}\s*$")
+
+    def _installed_styles(names):
+        todo = [n for n in names if n not in _sty_ok]
+        kpse = _find_tex_bin("kpsewhich") if todo else None
+        if todo and kpse:
+            try:
+                out = _sp.run([kpse, *[n + ".sty" for n in todo]], capture_output=True, text=True, timeout=20).stdout
+                found = {os.path.basename(line.strip())[:-4] for line in out.splitlines() if line.strip().endswith(".sty")}
+                for n in todo:
+                    _sty_ok[n] = n in found
+            except Exception:
+                pass
+        return {n: _sty_ok.get(n, True) for n in names}  # unknown → keep the line
+
+    def _available_preamble(preamble):
+        lines = preamble.split("\n")
+        pkgs = [m.group(1) for m in map(_USEPKG.match, lines) if m and "," not in m.group(1)]
+        ok = _installed_styles(pkgs)
+        kept = [ln for ln in lines if not ((m := _USEPKG.match(ln)) and not ok.get(m.group(1), True))]
+        if not ok.get("microtype", True):
+            kept = [ln for ln in kept if "\\DisableLigatures" not in ln]
+        return "\n".join(kept)
+
+    _get_tex_config = _tfw.get_tex_config
+
+    def _available_tex_config(template=""):
+        compiler, preamble = _get_tex_config(template)
+        if not _find_tex_bin(compiler):
+            return compiler, preamble
+        return compiler, _available_preamble(preamble)
+
+    _tfw.get_tex_config = _available_tex_config
 except Exception:  # pragma: no cover
     pass
 

@@ -208,6 +208,11 @@ check(not meta["errors"], f"recovery failed {meta['errors']}")
 
 # ----------------------------------------------------------------------------------------
 print("6. performance")
+# budgets are for a GPU; software OpenGL (llvmpipe: CI, VMs, GPU-less Linux) is ~5x slower, and the
+# app drops the preview to Low quality there anyway. Still catches order-of-magnitude regressions.
+GL = server.gl_info(R.camera.ctx)
+SLOW = 5 if GL.get("software") else 1
+print(f"   GL: {GL.get('renderer')}{' (software, budgets x5)' if SLOW > 1 else ''}")
 p = project(clip("circle", "a1", transform={"x": -3, "y": 0, "scale": 1, "rotation": 0, "opacity": 1}),
             clip("tex", "a2", "b"), clip("axes_graph", "a3", "b", start=1), clip("text", "a4", "a", start=0.5))
 frame(p, 2, 1280, 720)
@@ -221,13 +226,13 @@ for i in range(60):
     n += 1
 dt = (time.perf_counter() - t0) / n * 1000
 print(f"   drag re-render: {dt:.1f} ms/frame @1280x720")
-check(dt < 60, f"drag re-render too slow: {dt:.1f}ms")
+check(dt < 60 * SLOW, f"drag re-render too slow: {dt:.1f}ms")
 t0 = time.perf_counter()
 for i in range(90):
     frame(p, i / 30, 1280, 720)
 dt = (time.perf_counter() - t0) / 90 * 1000
 print(f"   playback: {dt:.1f} ms/frame @1280x720")
-check(dt < 80, f"playback too slow: {dt:.1f}ms")
+check(dt < 80 * SLOW, f"playback too slow: {dt:.1f}ms")
 
 # ----------------------------------------------------------------------------------------
 print("6b. memory + scheduling (GL objects freed, memo text, cached morphs, background jobs)")
@@ -595,7 +600,8 @@ GROUPS = {
     "VGroup": "return VGroup(Square(fill_opacity=1).shift(LEFT*3), Circle(fill_opacity=1), Triangle(fill_opacity=1).shift(RIGHT*3))",
     "Group": "return Group(Square(fill_opacity=1).shift(LEFT*3), Circle(fill_opacity=1), Triangle(fill_opacity=1).shift(RIGHT*3))",
     "nested": "return VGroup(VGroup(Square(fill_opacity=1).shift(LEFT*3)), VGroup(Circle(fill_opacity=1), Dot()), Triangle(fill_opacity=1).shift(RIGHT*3))",
-    "Text": 'return Text("A      B      C", font_size=200)',
+    # fixed width: how wide the spaces are depends on the font (DejaVu on a bare Linux is wider)
+    "Text": 'return Text("A    B    C", font_size=200).set_width(9)',
     "Tex": 'return Tex(r"A \\quad B \\quad C", font_size=140)',
     "VGroup.arrange": "return VGroup(*[Square(fill_opacity=1) for _ in range(3)]).arrange(RIGHT, buff=2)",
 }
