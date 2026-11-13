@@ -26,6 +26,8 @@ extraResources:
     to: models
 # Updates: GitHub Releases of package.json "repository" (owner/repo inferred). The CI uploads the
 # files itself (.github/workflows/release.yml); this only makes electron-builder write latest-linux.yml.
+# mathstudio = launcher script that adds --no-sandbox where Chromium's sandbox can't start
+afterPack: packaging/linux/after-pack.cjs
 publish:
   - provider: github
 linux:

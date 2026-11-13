@@ -13,7 +13,7 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-linux-'));
 const fails = []; const check = (c, m) => { console.log(c ? '   ✓' : '   ✗', m); if (!c) fails.push(m); };
 const t0 = Date.now(); const el = () => `${((Date.now() - t0) / 1000).toFixed(0)}s`;
 
-const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE' && !k.startsWith('OPENROUTER')));
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE' && k !== 'DEBUG' && !k.startsWith('OPENROUTER')));
 Object.assign(env, { MATHSTUDIO_NO_AUTOSAVE: '1', MATHSTUDIO_DATA: path.join(TMP, 'data'), MATHSTUDIO_PROJECTS_DIR: path.join(TMP, 'P'),
   MATHSTUDIO_RECENTS: path.join(TMP, 'r.json'), MATHSTUDIO_SETTINGS: path.join(TMP, 'settings.json'), MATHSTUDIO_STARTUP_PROJECTS: '0',
   HF_HUB_OFFLINE: '1', MATHSTUDIO_OFFLINE: '1', MATHSTUDIO_JOB_TIMEOUT: '120' });

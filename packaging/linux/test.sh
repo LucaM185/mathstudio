@@ -11,6 +11,7 @@ docker buildx build --platform linux/amd64 -f packaging/linux/Dockerfile.test --
 # faulthandler print where every thread is stuck, instead of the CI job silently hanging for hours
 T="${MS_STEP_TIMEOUT:-1500}"
 # DEBUG=pw:browser: Playwright prints the app's own stdout/stderr, so a launch failure shows why
+# (the tests keep DEBUG itself out of the app's env: the AppImage's AppRun would trace with set -x)
 # (MS_PW_DEBUG= to silence it)
 run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out -e DEBUG="${MS_PW_DEBUG-pw:browser}" -e PYTHONUNBUFFERED=1 -e PYTHONFAULTHANDLER=1 "$IMAGE" timeout -s ABRT -k 30 "$T" bash -lc "$1"; }
 fail=0

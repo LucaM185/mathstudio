@@ -46,7 +46,7 @@ fs.writeFileSync(SETTINGS, JSON.stringify({ autoCheckUpdates: false }));
 
 const logs = [];
 const launch = async () => {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE' && !k.startsWith('OPENROUTER')));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE' && k !== 'DEBUG' && !k.startsWith('OPENROUTER')));
   Object.assign(env, { APPIMAGE_EXTRACT_AND_RUN: '1', MATHSTUDIO_NO_AUTOSAVE: '1', MATHSTUDIO_DATA: path.join(TMP, 'data'),
     MATHSTUDIO_PROJECTS_DIR: path.join(TMP, 'P'), MATHSTUDIO_RECENTS: path.join(TMP, 'r.json'), MATHSTUDIO_SETTINGS: SETTINGS,
     MATHSTUDIO_STARTUP_PROJECTS: '0', MATHSTUDIO_UPDATE_URL: URL_, HF_HUB_OFFLINE: '1', MATHSTUDIO_OFFLINE: '1' });
