@@ -10,6 +10,9 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'ms-settings-'));
 const SETTINGS = path.join(TMP, 'settings.json');
 const GOOD = 'sk-or-v1-test-0123456789abcdef';
 const fails = []; const check = (c, m) => { console.log(c ? '   ✓' : '   ✗', m); if (!c) fails.push(m); };
+// screenshots are for looking at, not checks: on a slow software-GL box (CI) one can time out
+const shot = (win, name) => win.screenshot({ path: path.join(OUT, name), timeout: 15000 })
+  .catch((e) => console.log(`   (screenshot ${name} skipped: ${e.message.split('\n')[0]})`));
 
 const launch = async () => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'ELECTRON_RUN_AS_NODE' && k !== 'DEBUG' && !k.startsWith('OPENROUTER')));
@@ -72,7 +75,7 @@ const frameW = async (win) => {
   await win.waitForFunction(() => /rejected/.test(document.querySelector('[data-testid=settings-key-test-result]')?.textContent || ''));
   check(true, 'testing a wrong key reports it rejected');
   await win.fill('[data-testid=settings-key-input]', '');
-  await win.screenshot({ path: path.join(OUT, 'settings_key.png') });
+  await shot(win, 'settings_key.png');
 
   // quality: Low caps the preview, persisted
   const wHigh = await (async () => { await win.click('[data-testid=settings-quality-high]'); return frameW(win); })();
@@ -82,13 +85,13 @@ const frameW = async (win) => {
   check(wHigh > wLow, `High renders larger than Low (${wHigh} > ${wLow})`);
   check(JSON.parse(fs.readFileSync(SETTINGS, 'utf8')).quality === 'low', 'quality saved to settings.json');
   check(/960 px wide when still/.test(await win.textContent('[data-testid=settings-quality-now]')), 'panel states the active caps');
-  await win.screenshot({ path: path.join(OUT, 'settings_quality.png') });
+  await shot(win, 'settings_quality.png');
   // narrow right column: tabs still fit
   await win.setViewportSize({ width: 1280, height: 800 });
   await win.waitForTimeout(400);
   const tabs = await win.$eval('.right-tabs', (el) => ({ sw: el.scrollWidth, cw: el.clientWidth }));
   check(tabs.sw <= tabs.cw + 1, `right tabs fit without overflow (${tabs.sw} ≤ ${tabs.cw})`);
-  await win.screenshot({ path: path.join(OUT, 'settings_narrow.png') });
+  await shot(win, 'settings_narrow.png');
   await app.close();
 }
 {
