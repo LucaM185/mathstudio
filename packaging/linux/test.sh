@@ -10,7 +10,9 @@ docker buildx build --platform linux/amd64 -f packaging/linux/Dockerfile.test --
 # every step gets a time limit (MS_STEP_TIMEOUT, seconds): on expiry SIGABRT makes Python's
 # faulthandler print where every thread is stuck, instead of the CI job silently hanging for hours
 T="${MS_STEP_TIMEOUT:-1500}"
-run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out -e PYTHONUNBUFFERED=1 -e PYTHONFAULTHANDLER=1 "$IMAGE" timeout -s ABRT -k 30 "$T" bash -lc "$1"; }
+# DEBUG=pw:browser: Playwright prints the app's own stdout/stderr, so a launch failure shows why
+# (MS_PW_DEBUG= to silence it)
+run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out -e DEBUG="${MS_PW_DEBUG-pw:browser}" -e PYTHONUNBUFFERED=1 -e PYTHONFAULTHANDLER=1 "$IMAGE" timeout -s ABRT -k 30 "$T" bash -lc "$1"; }
 fail=0
 echo "== engine tests with the bundled Python (.deb install)"
 run 'cp -r /opt/MathStudio/resources/engine /tmp/eng && cp -r /t/engine-tests /tmp/eng/tests && cd /tmp/eng && xvfb-run -a -s "-screen 0 1920x1080x24" /opt/MathStudio/resources/python/bin/python3 -W ignore tests/test_engine.py --export' || fail=1

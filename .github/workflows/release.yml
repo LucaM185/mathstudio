@@ -70,6 +70,20 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      # dry runs (and failed runs) keep the packages for a few days, to try or debug that exact build
+      - name: Keep the packages
+        if: always() && (github.ref_type != 'tag' || failure())
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            release/MathStudio-x86_64.AppImage
+            release/MathStudio-amd64.deb
+            release/latest-linux.yml
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: ignore
+
       - name: Publish the GitHub Release
         if: github.ref_type == 'tag'
         env:
