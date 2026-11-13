@@ -437,7 +437,7 @@ export async function switchToProject(path: string, opts: { quiet?: boolean } = 
     if (!opts.quiet) S().toast(`Opened ${r.path.split('/').pop()}`);
     return true;
   } catch (e: any) {
-    S().toast(`Could not open project: ${e.message || e}`, 'error');
+    S().toast(`Could not open project: ${String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')}`, 'error');
     return false;
   }
 }

@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('studio', {
   chooseDir: () => ipcRenderer.invoke('export:chooseDir'),
   reveal: (p) => ipcRenderer.invoke('shell:reveal', p),
   openPath: (p) => ipcRenderer.invoke('shell:open', p),
+  openPrivacySettings: () => ipcRenderer.invoke('privacy:openSettings'),
   setTitle: (t) => ipcRenderer.invoke('window:setTitle', t),
   confirm: (message, detail, buttons) => ipcRenderer.invoke('confirm', { message, detail, buttons }),
   pathForFile: (file) => {

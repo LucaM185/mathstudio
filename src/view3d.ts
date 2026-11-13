@@ -294,6 +294,24 @@ export function boxCorners(tr: { x: number; y: number; z: number; scale: number;
   return out;
 }
 
+// ---------------------------------------------------------------- clip orientation
+export type Orient = { rotation: number; rx: number; ry: number };
+export type Axis = 'x' | 'y' | 'z';
+type M3 = number[][];
+
+const mm = (a: M3, b: M3): M3 => a.map((r) => [0, 1, 2].map((j) => r[0] * b[0][j] + r[1] * b[1][j] + r[2] * b[2][j]));
+function axisRot(axis: Axis, deg: number): M3 {
+  const c = Math.cos(deg * DEG), s = Math.sin(deg * DEG);
+  if (axis === 'x') return [[1, 0, 0], [0, c, -s], [0, s, c]];
+  if (axis === 'y') return [[c, 0, s], [0, 1, 0], [-s, 0, c]];
+  return [[c, -s, 0], [s, c, 0], [0, 0, 1]];
+}
+
+/** The clip's rotation matrix: Ry(ry)·Rx(rx)·Rz(rotation), the engine's apply_transform order. */
+export function orientMatrix(o: Orient): M3 {
+  return mm(axisRot('y', o.ry), mm(axisRot('x', o.rx), axisRot('z', o.rotation)));
+}
+
 /** True when the clip has a 3D orientation (not lying in a plane parallel to XY). */
 export const isTilted = (tr: { rx?: number; ry?: number }) => Math.abs(tr.rx || 0) > 1e-9 || Math.abs(tr.ry || 0) > 1e-9;
 

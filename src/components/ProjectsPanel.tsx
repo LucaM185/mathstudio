@@ -455,6 +455,13 @@ export default function ProjectsPanel() {
               )}
             </div>
           ) : (
+            <>
+            {cards.some((e) => e !== CURRENT && (e as ProjectEntry).blocked) && (
+              <div className="proj-blocked" data-testid="projects-blocked">
+                <span>macOS is blocking MathStudio from reading some project files. Allow access under <b>Privacy &amp; Security → Files &amp; Folders</b>, then reopen this panel.</span>
+                <button className="btn" onClick={() => window.studio.openPrivacySettings()}>Open System Settings</button>
+              </div>
+            )}
             <div className="proj-grid" ref={gridRef} data-testid="projects-grid">
               {cards.map((e, i) => {
                 if (e === CURRENT) {
@@ -491,7 +498,7 @@ export default function ProjectsPanel() {
                       {isCur && <span className="proj-badge open">Open</span>}
                       {busyPaths.has(e.path) && <span className="proj-badge ai" data-testid="project-ai-badge">AI working</span>}
                       {!e.exists && <span className="proj-badge bad">Missing</span>}
-                      {e.error && <span className="proj-badge bad">Unreadable</span>}
+                      {e.error && <span className="proj-badge bad">{e.blocked ? 'No access' : 'Unreadable'}</span>}
                       {hasMobject(e.path) && <span className="proj-badge mobj" data-testid="project-mobject-badge" title="This project is also a mobject in your library (My mobjects)"><Package size={10} /> Mobject</span>}
                       <button
                         className="icon-btn proj-more"
@@ -550,6 +557,7 @@ export default function ProjectsPanel() {
                 );
               })}
             </div>
+            </>
           )}
         </div>
         <div className="proj-foot muted">{inTrash ? '↑↓←→ to move · Enter or double-click to restore · Esc back to projects' : '↑↓←→ to move · Enter to open · L to like · H for history · ⌘⌫ to delete · right-click for more · double-click a name to rename'}</div>

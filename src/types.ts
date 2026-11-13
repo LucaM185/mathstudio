@@ -306,6 +306,8 @@ export interface ProjectEntry {
   background?: string;
   thumb?: string;
   error?: string;
+  /** macOS privacy protection refused access to the file (fix in System Settings) */
+  blocked?: boolean;
   /** liked by the user: heart on the card, listed first */
   favorite?: boolean;
   /** versions saved with ⌘S (see Projects → ⋯ → See history) */
@@ -424,6 +426,7 @@ declare global {
       chooseExportPath: (name: string, format: string) => Promise<string | null>;
       chooseDir: () => Promise<string | null>;
       reveal: (p: string) => Promise<void>;
+      openPrivacySettings: () => Promise<void>;
       openPath: (p: string) => Promise<void>;
       setTitle: (t: string) => Promise<void>;
       confirm: (message: string, detail?: string, buttons?: string[]) => Promise<number>;

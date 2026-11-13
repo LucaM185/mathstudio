@@ -8,6 +8,7 @@ import { CAMERA_ID, MORPH_SEL, camRect, cameraAt, isFlat, overviewView, round, s
 import type { Cam } from '../ops';
 import type { Clip, FrameMeta, Transform } from '../types';
 import ViewCube from './ViewCube';
+import RotateGizmo from './RotateGizmo';
 import { basis, boxCorners, convexHull, isTilted, inPolygon, IDENTITY_CAM, orbit, pan, polyArea, projector, zoomAt, type Projector, type Pt, type V3 } from '../view3d';
 import { cameraToEditorView, currentNavView, exitEditorView, navTarget, setNavView, stageSize, stopNavAnim, type NavTarget } from '../nav';
 import { Crop, Video } from 'lucide-react';
@@ -34,6 +35,17 @@ function CenterPlus({ hot, size = 8, tone = 'object' }: { hot?: boolean; size?: 
     </g>
   );
 }
+
+/** World axis (0 x, 1 y, 2 z) normal to the plane a 3D drag moves an object on: the ground plane
+ *  facing the viewer most (XY unless looking from above / below or the side). The depth handle
+ *  moves along this axis, so the two together reach every point. */
+export function dragPlaneAxis(out: V3): 0 | 1 | 2 {
+  return Math.abs(out[2]) > 0.26 ? 2 : Math.abs(out[0]) > Math.abs(out[1]) ? 0 : 1;
+}
+const AXIS_NAME = ['x', 'y', 'z'] as const;
+const AXIS_COLOR = ['#ff6b6b', '#6bd96b', '#6aa8ff'];
+/** world units per ⊙ / ⊗ click on the depth handle (Shift: 0.1) */
+const DEPTH_STEP = 0.5;
 
 /** Picking within this many px of a centre crosshair snaps that centre onto other centres. */
 const CENTER_GRAB = 16;
@@ -81,7 +93,8 @@ type Drag =
   | { kind: 'move3d'; ids: string[]; sx: number; sy: number; start: Record<string, Transform>; moved: boolean; pr: Projector; n: V3 | null; p0: V3; hit0: V3 | null; fromCenter: boolean }
   | { kind: 'part'; id: string; path: string; sx: number; sy: number; k: number; rot: number; d0: { dx: number; dy: number }; moved: boolean; box0: [number, number, number, number]; snapX: number[]; snapY: number[] }
   | { kind: 'scale'; id: string; cx: number; cy: number; d0: number; s0: number }
-  | { kind: 'rotate'; id: string; cx: number; cy: number; last: number; acc: number; r0: number; sign: number };
+  | { kind: 'rotate'; id: string; cx: number; cy: number; last: number; acc: number; r0: number; sign: number }
+  | { kind: 'depth'; id: string; axis: 0 | 1 | 2; sign: number; sy: number; v0: number; unit: number; step: number; moved: boolean; snaps: number[]; value: number };
 
 export default function Preview() {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -486,8 +499,7 @@ export default function Preview() {
       // 3D: slide on the ground plane through the object, like a CAD move. When the view is close to
       // edge-on (looking from the side), use the vertical plane that faces the viewer instead.
       const p0: V3 = [b.tr.x, b.tr.y, b.tr.z || 0];
-      const o = b.pr.out;
-      const k = Math.abs(o[2]) > 0.26 ? 2 : Math.abs(o[0]) > Math.abs(o[1]) ? 0 : 1;
+      const k = dragPlaneAxis(b.pr.out);
       const n: V3 = [k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0];
       const hit0 = b.pr.toPlane(px, py, n, p0);
       setDrag({ kind: 'move3d', ids, sx: e.clientX, sy: e.clientY, start, moved: false, pr: b.pr, n: hit0 ? n : null, p0, hit0, fromCenter });
@@ -511,6 +523,30 @@ export default function Preview() {
       setDrag({ kind: 'rotate', id: b.clip.id, cx: b.cx, cy: b.cy, last: Math.atan2(-(py - b.cy), px - b.cx), acc: 0, r0: b.tr.rotation, sign });
     }
     useStore.setState({ interacting: true, playing: false });
+  };
+
+  /** Depth handle: drag up = toward the viewer, down = away, along the axis normal to the move plane.
+   *  `step` = ±1 when pressed on ⊙ / ⊗ (a click without dragging steps by DEPTH_STEP). */
+  const onDepthDown = (e: React.PointerEvent, b: Box, step: number) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    const axis = b.poly || !b.pr.flat ? dragPlaneAxis(b.pr.out) : 2;
+    // "toward the viewer" is +axis when the axis points out of the screen
+    const sign = b.pr.out[axis] >= 0 ? 1 : -1;
+    const v0 = axis === 0 ? b.tr.x : axis === 1 ? b.tr.y : b.tr.z || 0;
+    const snaps = [0, ...boxes.filter((o) => o.clip.id !== b.clip.id && !!o.clip.fixed === !!b.clip.fixed).map((o) => (axis === 0 ? o.tr.x : axis === 1 ? o.tr.y : o.tr.z || 0))];
+    setDrag({ kind: 'depth', id: b.clip.id, axis, sign, sy: e.clientY, v0, unit: b.pr.unit, step: e.shiftKey ? step * 0.2 : step, moved: false, snaps, value: v0 });
+    useStore.setState({ interacting: true, playing: false });
+  };
+  const setDepth = (d: Extract<Drag, { kind: 'depth' }>, v: number) => {
+    const st = useStore.getState();
+    const key = AXIS_NAME[d.axis];
+    d.value = v;
+    st.commit((p) => {
+      const c = p.clips.find((c) => c.id === d.id);
+      if (c) setTransformAt(c, st.time - c.start, { [key]: round(v, 3) }, p.settings.fps);
+    }, { transient: true });
   };
 
   const onCropHandleDown = (e: React.PointerEvent, dx: number, dy: number) => {
@@ -666,6 +702,23 @@ export default function Preview() {
       }
       const zoom = FW / width;
       st.commit((p) => setCameraAt(p, st.time, { x: round(x, 3), y: round(y, 3), zoom: round(zoom, 4) }, fps), { transient: true });
+      return;
+    }
+    if (drag.kind === 'depth') {
+      const dy = e.clientY - drag.sy;
+      if (!drag.moved) {
+        if (Math.abs(dy) < 3) return;
+        st.checkpoint();
+        drag.moved = true;
+      }
+      let v = drag.v0 + (drag.sign * -dy) / drag.unit;
+      if (e.shiftKey) v = Math.round(v / 0.25) * 0.25;
+      else if (st.snapping && !e.metaKey) {
+        const s = nearestAxis(v, drag.snaps, 8 / drag.unit);
+        if (s !== undefined) v = s;
+      }
+      setDepth(drag, v);
+      bump((n) => n + 1); // refresh the readout
       return;
     }
     if (drag.kind === 'move3d') {
@@ -829,6 +882,13 @@ export default function Preview() {
   };
 
   const onPointerUp = () => {
+    if (drag?.kind === 'depth' && !drag.moved && drag.step) {
+      // pointerup reaches both the handle and the overlay: step once
+      const step = drag.step;
+      drag.step = 0;
+      useStore.getState().checkpoint();
+      setDepth(drag, round(drag.v0 + drag.sign * step * DEPTH_STEP, 3));
+    }
     if (drag) {
       if (drag.kind === 'nav' && drag.moved) navSuppress.current = true;
       setDrag(null);
@@ -1004,6 +1064,9 @@ export default function Preview() {
               </g>
             ))}
             {selectedBoxes.length === 1 && !selectedBoxes[0].poly && <PartOutline box={selectedBoxes[0]} hover={drag ? null : partHover} guides={partGuides} />}
+            {selectedBoxes.length === 1 && !animPreview && !lockedTracks.has(selectedBoxes[0].clip.track) && (
+              <DepthHandle box={selectedBoxes[0]} stage={stage} drag={drag?.kind === 'depth' ? drag : null} onDown={onDepthDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
+            )}
             {selectedBoxes.filter((b) => !b.poly).map((b) => (
               <g key={b.clip.id} transform={`translate(${b.cx} ${b.cy}) rotate(${-b.rot})`}>
                 <g transform={`translate(${b.ox} ${b.oy})`}>
@@ -1065,6 +1128,7 @@ export default function Preview() {
             </div>
           )}
           {!animPreview && meta && !fullView && <ViewCube view={view} editor={!!freeView} />}
+          {!animPreview && meta && !fullView && <RotateGizmo view={view} />}
           {project.clips.length === 0 && (
             <div className="stage-empty">
               <div className="big-hint">Drag a mobject here</div>
@@ -1092,6 +1156,81 @@ export default function Preview() {
         </div>
       </div>
     </div>
+  );
+}
+
+type DepthBox = { clip: Clip; cx: number; cy: number; w: number; h: number; ox: number; oy: number; rot: number; tr: Transform; pr: Projector; poly: Pt[] | null; ax: number; ay: number };
+
+/**
+ * ⊙ / ⊗ handle right of the selected clip: pulls it toward the viewer / pushes it into the screen
+ * along the axis normal to the plane the move drag uses (z in the 2D view). While dragging, the axis
+ * is drawn through the clip and the value is shown next to the handle.
+ */
+function DepthHandle({ box: b, stage, drag, onDown, onPointerMove, onPointerUp }: {
+  box: DepthBox;
+  stage: { w: number; h: number };
+  drag: Extract<Drag, { kind: 'depth' }> | null;
+  onDown: (e: React.PointerEvent, b: any, step: number) => void;
+  onPointerMove: (e: React.PointerEvent) => void;
+  onPointerUp: (e: React.PointerEvent) => void;
+}) {
+  const axis = b.poly || !b.pr.flat ? dragPlaneAxis(b.pr.out) : 2;
+  const name = AXIS_NAME[axis];
+  const color = AXIS_COLOR[axis];
+  // right edge of the clip's on-screen box (flat boxes are rotated rectangles)
+  let right: number, midY: number;
+  if (b.poly) {
+    right = Math.max(...b.poly.map((q) => q.x));
+    midY = b.ay;
+  } else {
+    const a = (-b.rot * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+    const xs = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => (b.ox + (sx * b.w) / 2) * ca - (b.oy + (sy * b.h) / 2) * sa));
+    right = b.cx + Math.max(...xs);
+    midY = b.cy + (b.ox * sa + b.oy * ca);
+  }
+  const H = 54;
+  const x = Math.min(Math.max(right + 22, 16), stage.w - 16);
+  const y = Math.min(Math.max(midY, H / 2 + 6), stage.h - H / 2 - 6);
+  const value = drag ? drag.value : axis === 0 ? b.tr.x : axis === 1 ? b.tr.y : b.tr.z || 0;
+  // the axis through the clip while dragging (a point when looking straight down it)
+  let guide: { x1: number; y1: number; x2: number; y2: number } | null = null;
+  if (drag && drag.moved) {
+    const p: V3 = [b.tr.x, b.tr.y, b.tr.z || 0];
+    const e1 = [...p] as V3, e2 = [...p] as V3;
+    e1[axis] -= 40; e2[axis] += 40;
+    const q1 = b.pr.project(e1), q2 = b.pr.project(e2), q0 = b.pr.project(p);
+    if (q0.ok && Math.hypot(q1.x - q2.x, q1.y - q2.y) > 4) {
+      // clamp each end to the visible side of the eye
+      const a1 = q1.ok ? q1 : q0, a2 = q2.ok ? q2 : q0;
+      guide = { x1: a1.x, y1: a1.y, x2: a2.x, y2: a2.y };
+    }
+  }
+  const handlers = { onPointerMove, onPointerUp };
+  const tip = `Depth (${name}): drag up to pull toward you, down to push into the screen · click ⊙ / ⊗ to step ${DEPTH_STEP} (Shift 0.1) · Shift-drag = 0.25 steps`;
+  return (
+    <g className={`depth-handle ${drag ? 'active' : ''}`} style={{ ['--axis' as any]: color }} data-testid="depth-handle" data-axis={name}>
+      {guide && <line className="depth-guide" {...guide} />}
+      <g transform={`translate(${x} ${y})`}>
+        <title>{tip}</title>
+        <rect className="depth-pill" x={-11} y={-H / 2} width={22} height={H} rx={11} onPointerDown={(e) => onDown(e, b, 0)} {...handlers} data-testid="depth-drag" />
+        <g className="depth-btn" data-testid="depth-out" onPointerDown={(e) => onDown(e, b, 1)} {...handlers}>
+          <circle cy={-14} r={8} className="depth-hit" />
+          <circle cy={-14} r={6} className="depth-ring" />
+          <circle cy={-14} r={2.1} className="depth-dot" />
+        </g>
+        <g className="depth-btn" data-testid="depth-in" onPointerDown={(e) => onDown(e, b, -1)} {...handlers}>
+          <circle cy={14} r={8} className="depth-hit" />
+          <circle cy={14} r={6} className="depth-ring" />
+          <path d="M-3.4 10.6 L3.4 17.4 M3.4 10.6 L-3.4 17.4" className="depth-x" />
+        </g>
+        <line x1={-4} x2={4} y1={0} y2={0} className="depth-grip" />
+        {drag && (
+          <text x={x > stage.w - 90 ? -18 : 18} y={4} className="depth-readout" textAnchor={x > stage.w - 90 ? 'end' : 'start'} data-testid="depth-readout">
+            {name} {value.toFixed(2)}
+          </text>
+        )}
+      </g>
+    </g>
   );
 }
 

@@ -1,0 +1,43 @@
+# macOS Apple Silicon build (MathStudio.app). Run via packaging/mac/build.sh, which stages the
+# Python bundle in build-res-mac/ first. Signed with the Developer ID certificate found in the
+# keychain (electron-builder picks it automatically), so macOS privacy grants (Documents folder…)
+# stay attached to the app across rebuilds.
+appId: app.mathstudio.ide
+productName: MathStudio
+copyright: MathStudio
+directories:
+  output: release
+  buildResources: packaging
+files:
+  - electron/**/*
+  - dist/**/*
+  - packaging/icon.png
+  - package.json
+extraResources:
+  - from: build-res-mac/engine
+    to: engine
+  - from: build-res-mac/python
+    to: python
+  - from: build-res-mac/models
+    to: models
+publish:
+  - provider: github
+mac:
+  target:
+    - target: dir
+      arch: arm64
+  category: public.app-category.graphics-design
+  icon: packaging/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # the bundled Python loads hundreds of native extensions (numpy, scipy, moderngl, onnxruntime…)
+  entitlements: packaging/mac/entitlements.plist
+  entitlementsInherit: packaging/mac/entitlements.plist
+  notarize: false
+  # build.sh already signed every Mach-O in these trees; the rest is data (.py/.pyc, fonts, models)
+  signIgnore:
+    - /Contents/Resources/(python|engine|models)/
+  extendInfo:
+    NSDocumentsFolderUsageDescription: MathStudio saves your projects in Documents/MathStudio.
+    NSDesktopFolderUsageDescription: MathStudio opens and saves projects and exports you keep on the Desktop.
+    NSDownloadsFolderUsageDescription: MathStudio opens and saves projects and exports you keep in Downloads.

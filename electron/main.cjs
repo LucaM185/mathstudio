@@ -59,6 +59,9 @@ function startEngine() {
       cwd = DATA_DIR;
       env.PATH = `${path.join(RES, 'python', 'bin')}${path.delimiter}${env.PATH || ''}`; // bundled ffmpeg
       env.PYTHONNOUSERSITE = '1';
+      env.PYTHONDONTWRITEBYTECODE = '1'; // precompiled at build time; never write into the (signed) bundle
+      // apps opened from Finder/Dock get PATH=/usr/bin:/bin:… — add MacTeX (LaTeX for Tex) and Homebrew
+      if (process.platform === 'darwin') env.PATH += ['/Library/TeX/texbin', '/opt/homebrew/bin', '/usr/local/bin'].map((d) => path.delimiter + d).join('');
       delete env.PYTHONHOME;
       delete env.PYTHONPATH;
       const model = path.join(RES, 'models', 'bge-small-en-v1.5');
@@ -234,8 +237,18 @@ ipcMain.handle('project:open', async () => {
   return { path: p, data };
 });
 
+/** macOS privacy protection (TCC) refuses Documents/Desktop/Downloads/iCloud access with EPERM even
+ *  though the POSIX permissions are fine — typically after the Electron binary changed (npm install,
+ *  update) and lost its earlier grant. Say so instead of a raw "operation not permitted". */
+const BLOCKED_MSG = 'macOS is blocking MathStudio from reading this folder. Allow it in System Settings → Privacy & Security → Files & Folders (or Full Disk Access), then reopen the Projects panel.';
+function isPrivacyBlock(e) { return process.platform === 'darwin' && e && e.code === 'EPERM'; }
+function readProjectFile(p) {
+  try { return fs.readFileSync(p, 'utf8'); }
+  catch (e) { if (isPrivacyBlock(e)) throw new Error(BLOCKED_MSG); throw e; }
+}
+
 ipcMain.handle('project:read', async (_e, p) => {
-  const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const data = JSON.parse(readProjectFile(p));
   touchRecent(p);
   return { path: p, data };
 });
@@ -400,7 +413,8 @@ function projectInfo(p, opened) {
       if (t.mtime !== st.mtimeMs) info.thumbStale = true;
     } catch (e) { /* no thumb yet */ }
   } catch (e) {
-    if (info.exists) info.error = 'Unreadable project file';
+    if (isPrivacyBlock(e)) { info.blocked = true; info.error = 'Blocked by macOS privacy settings'; }
+    else if (info.exists) info.error = 'Unreadable project file';
   }
   return info;
 }
@@ -933,6 +947,9 @@ ipcMain.handle('export:chooseDir', async () => {
 
 ipcMain.handle('shell:reveal', async (_e, p) => { shell.showItemInFolder(p); });
 ipcMain.handle('shell:open', async (_e, p) => { await shell.openPath(p); });
+ipcMain.handle('privacy:openSettings', async () => {
+  if (process.platform === 'darwin') await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders');
+});
 // links from the UI (Settings → "Get a key"); only https pages on an allowlist
 ipcMain.handle('open-external', async (_e, url) => {
   try {

@@ -1,5 +1,7 @@
-// Smoke test for a packaged Linux build (run inside packaging/linux/test.sh's container, under Xvfb):
+// Smoke test for a packaged build — Linux (run inside packaging/linux/test.sh's container, under Xvfb):
 //   MS_APP=/opt/MathStudio/mathstudio node tests/linux_smoke.mjs
+// or macOS (launched with Finder's minimal PATH; afterwards the bundle's signature must still verify):
+//   MS_APP=release/mac-arm64/MathStudio.app/Contents/MacOS/MathStudio node tests/linux_smoke.mjs
 // Engine boots from the bundled Python, library thumbnails render, GL renderer detected, Auto picks
 // Low on software GL, semantic search works offline from the bundled model, preview renders a
 // clip, an mp4 export goes through the bundled ffmpeg, LaTeX-less systems get a readable error.
@@ -17,6 +19,8 @@ const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !==
 Object.assign(env, { MATHSTUDIO_NO_AUTOSAVE: '1', MATHSTUDIO_DATA: path.join(TMP, 'data'), MATHSTUDIO_PROJECTS_DIR: path.join(TMP, 'P'),
   MATHSTUDIO_RECENTS: path.join(TMP, 'r.json'), MATHSTUDIO_SETTINGS: path.join(TMP, 'settings.json'), MATHSTUDIO_STARTUP_PROJECTS: '0',
   HF_HUB_OFFLINE: '1', MATHSTUDIO_OFFLINE: '1', MATHSTUDIO_JOB_TIMEOUT: '120' });
+const MAC = process.platform === 'darwin';
+if (MAC) env.PATH = '/usr/bin:/bin:/usr/sbin:/sbin'; // what an app opened from Finder / the Dock gets
 const app = await electron.launch({ executablePath: APP, args: process.env.MS_NO_SANDBOX ? ['--no-sandbox'] : [], env, timeout: 180000 });
 app.process().stderr?.on('data', (d) => { const s = d.toString(); if (/error|Traceback/i.test(s) && !/GPU|gpu_|dbus|Fontconfig|viz|ALSA|libva/i.test(s)) process.stdout.write(`   [stderr] ${s.slice(0, 400)}`); });
 const win = await app.firstWindow();
@@ -78,7 +82,7 @@ const size = fs.existsSync(outFile) ? fs.statSync(outFile).size : 0;
 check(st.status === 'done' && size > 2000, `mp4 export done (${st.status}, ${size} bytes, ${el()})${st.status !== 'done' ? '\n' + String(st.log || '').slice(-1200) : ''}`);
 
 // LaTeX item without a TeX install: error must say what to install
-const hasLatex = fs.existsSync('/usr/bin/latex');
+const hasLatex = ['/usr/bin/latex', '/Library/TeX/texbin/latex'].some((f) => fs.existsSync(f));
 const tid = await win.evaluate(() => window.__ms.actions.addItem('tex', { time: 0 }));
 await win.waitForFunction((id) => { const m = window.__ms.store.getState().meta; return m && (m.errors?.[id] || m.clips?.[id]); }, tid, { timeout: 120000 }).catch(() => {});
 await win.waitForTimeout(1000);
@@ -95,4 +99,9 @@ await win.screenshot({ path: path.join(OUT, `${TAG}_settings.png`) });
 await app.close();
 const ro = !fs.readdirSync(path.dirname(APP)).some((f) => f === 'videos');
 check(ro, 'nothing written next to the app binary');
+if (MAC) {
+  const bundle = APP.replace(/\/Contents\/MacOS\/[^/]+$/, '');
+  const v = (await import('child_process')).spawnSync('codesign', ['--verify', '--deep', '--strict', bundle], { encoding: 'utf8' });
+  check(v.status === 0, `app signature still valid after running (nothing written into the bundle)${v.status ? ': ' + v.stderr.slice(0, 300) : ''}`);
+}
 console.log(fails.length ? `FAILED ${fails.length}` : `ALL PASS (${el()})`); process.exit(fails.length ? 1 : 0);

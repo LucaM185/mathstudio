@@ -1101,3 +1101,49 @@ h5 .anim-name { font-size: 11px; font-weight: 500; color: var(--muted); text-tra
 .upd-auto { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); cursor: pointer; }
 .upd-auto input { margin: 0; accent-color: var(--accent); }
 .upd-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-left: 4px; flex: none; }
+.proj-blocked { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; padding: 10px 14px; border-radius: 8px; background: rgba(255, 170, 60, .1); border: 1px solid rgba(255, 170, 60, .35); font-size: 13px; }
+.proj-blocked span { flex: 1; }
+.proj-blocked .btn { white-space: nowrap; }
+
+/* ------------------------------------------------------------- 3D rotate widget (stage, bottom right) */
+.rot-gizmo { position: absolute; right: 8px; bottom: 8px; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 7px;
+  background: rgba(15, 16, 20, .88); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  user-select: none; touch-action: none; opacity: .9; transition: opacity .15s; }
+.rot-gizmo:hover, .stage.dragging .rot-gizmo { opacity: 1; }
+.rot-preview { display: block; flex: none; }
+.rot-preview-bg { fill: rgba(255,255,255,.035); stroke: rgba(255,255,255,.08); }
+.rot-preview-axis { stroke-width: 1.1; stroke-linecap: round; }
+.rot-card { stroke-width: 1.2; stroke-linejoin: round; }
+.rot-card.front { fill: rgba(91,157,255,.42); stroke: #9cc2ff; }
+.rot-card.back { fill: rgba(150,150,165,.18); stroke: #8a8f9c; stroke-dasharray: 2.5 2; }
+.rot-notch { fill: #e8eefb; opacity: .85; }
+.rot-rows { display: flex; flex-direction: column; gap: 2px; }
+.rot-head { display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 600; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); padding: 0 2px 1px 4px; }
+.rot-reset { width: 18px; height: 16px; padding: 0; display: grid; place-items: center; border-radius: 4px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.rot-reset:hover:not(:disabled) { background: var(--raised); color: var(--text); }
+.rot-reset:disabled { opacity: .3; cursor: default; }
+.rot-row { display: flex; align-items: center; gap: 2px; }
+.rot-arrow { width: 24px; height: 22px; padding: 0; display: grid; place-items: center; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--axis); cursor: pointer; }
+.rot-arrow:hover { background: color-mix(in srgb, var(--axis) 18%, transparent); border-color: color-mix(in srgb, var(--axis) 45%, transparent); }
+.rot-arrow:active { background: color-mix(in srgb, var(--axis) 32%, transparent); }
+.rot-arrow:focus-visible { outline: 1px solid var(--axis); }
+.rot-val { width: 62px; height: 22px; display: flex; align-items: center; gap: 5px; padding: 0 6px; border-radius: 5px; background: rgba(255,255,255,.05); cursor: ew-resize; font-family: var(--mono); font-size: 11px; }
+.rot-val:hover { background: rgba(255,255,255,.09); }
+.rot-axis { color: var(--axis); font-weight: 700; }
+.rot-num { flex: 1; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.stage:has(.rot-gizmo) .stage-errors { right: 228px; }
+.rot-normal line { stroke: #e8eefb; stroke-width: 1.3; stroke-linecap: round; opacity: .8; }
+.rot-normal circle { fill: #e8eefb; }
+
+/* ------------------------------------------------------------- depth handle (⊙ toward you / ⊗ into the screen) */
+.depth-handle .depth-pill { fill: rgba(15, 16, 20, .82); stroke: color-mix(in srgb, var(--axis) 55%, transparent); stroke-width: 1.2; cursor: ns-resize; }
+.depth-handle .depth-pill:hover, .depth-handle.active .depth-pill { stroke: var(--axis); fill: rgba(20, 24, 34, .92); }
+.depth-handle .depth-btn { cursor: pointer; }
+.depth-handle .depth-hit { fill: transparent; }
+.depth-handle .depth-ring { fill: none; stroke: var(--axis); stroke-width: 1.4; }
+.depth-handle .depth-dot { fill: var(--axis); }
+.depth-handle .depth-x { stroke: var(--axis); stroke-width: 1.4; stroke-linecap: round; fill: none; }
+.depth-handle .depth-btn:hover .depth-hit { fill: color-mix(in srgb, var(--axis) 25%, transparent); }
+.depth-handle .depth-grip { stroke: color-mix(in srgb, var(--axis) 60%, transparent); stroke-width: 1.2; stroke-linecap: round; pointer-events: none; }
+.depth-handle .depth-guide { stroke: var(--axis); stroke-width: 1.2; stroke-dasharray: 5 4; opacity: .75; pointer-events: none; }
+.depth-handle .depth-readout { fill: #e8eefb; font-size: 11px; font-family: var(--mono); paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 3px; pointer-events: none; }
