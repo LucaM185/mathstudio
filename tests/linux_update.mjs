@@ -92,7 +92,9 @@ try {
     relaunched = ps.split('\n').some((l) => /appimage_extracted|Applications\/MathStudio/.test(l) && !/ps -eo/.test(l));
   }
   check(relaunched, 'new version started automatically');
-  execSync('pkill -f appimage_extracted || true; pkill -f Applications/MathStudio || true');
+  // stop the relaunched copy before the next launch; "[a]..." so pkill doesn't also match (and
+  // kill) the shell running this very command line
+  try { execSync('pkill -f "[a]ppimage_extracted"; pkill -f "[A]pplications/MathStudio"; true'); } catch { /* nothing left */ }
   await new Promise((r) => setTimeout(r, 3000));
 } catch (e) {
   check(false, `crashed: ${e.message}`);
