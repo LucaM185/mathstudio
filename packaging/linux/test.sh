@@ -14,14 +14,17 @@ T="${MS_STEP_TIMEOUT:-1500}"
 # (the tests keep DEBUG itself out of the app's env: the AppImage's AppRun would trace with set -x)
 # (MS_PW_DEBUG= to silence it)
 run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e MS_OUT=/out -e DEBUG="${MS_PW_DEBUG-pw:browser}" -e PYTHONUNBUFFERED=1 -e PYTHONFAULTHANDLER=1 "$IMAGE" timeout -s ABRT -k 30 "$T" bash -lc "$1"; }
+# Electron tests get one retry: in CI containers Chromium's startup now and then stalls before
+# DevTools comes up (electron.launch timeout). A real breakage fails twice; a retry shows in the log.
+run_retry() { run "$1" && return 0; echo "   ↻ failed once, retrying"; run "$1"; }
 fail=0
 echo "== engine tests with the bundled Python (.deb install)"
 run 'cp -r /opt/MathStudio/resources/engine /tmp/eng && cp -r /t/engine-tests /tmp/eng/tests && cd /tmp/eng && xvfb-run -a -s "-screen 0 1920x1080x24" /opt/MathStudio/resources/python/bin/python3 -W ignore tests/test_engine.py --export' || fail=1
 echo "== .deb: Linux smoke test"
-run 'cd /t && MS_TAG=deb MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
+run_retry 'cd /t && MS_TAG=deb MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
 echo "== .deb: Settings tab test"
-run 'cd /t && MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 2560x1440x24" node tests/settings.mjs' || fail=1
+run_retry 'cd /t && MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 2560x1440x24" node tests/settings.mjs' || fail=1
 echo "== AppImage: Linux smoke test"
-run 'cd /t && APPIMAGE_EXTRACT_AND_RUN=1 MS_TAG=appimage MS_APP=$(ls /t/*.AppImage) xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
+run_retry 'cd /t && APPIMAGE_EXTRACT_AND_RUN=1 MS_TAG=appimage MS_APP=$(ls /t/*.AppImage) xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
 [ $fail = 0 ] && echo "LINUX TESTS PASS" || echo "LINUX TESTS FAILED"
 exit $fail

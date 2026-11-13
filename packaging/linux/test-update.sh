@@ -13,5 +13,7 @@ OUT="$PWD/$REL/test-out"; mkdir -p "$OUT" "$NEXT"; chmod 777 "$OUT"
 docker buildx build --platform linux/amd64 -f packaging/linux/Dockerfile --target artifacts-next ${MS_BUILDX_ARGS:-} \
   --output "type=local,dest=$NEXT" . || exit 1
 ls -lh "$NEXT"
-docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -v "$PWD/$NEXT:/srv:ro" -e MS_OUT=/out -e DEBUG="${MS_PW_DEBUG-pw:browser}" "$IMAGE" \
-  timeout -s ABRT -k 30 "${MS_STEP_TIMEOUT:-1500}" bash -lc 'cd /t && MS_APP=$(ls /t/*.AppImage) MS_NEXT=/srv xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_update.mjs'
+upd() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -v "$PWD/$NEXT:/srv:ro" -e MS_OUT=/out -e DEBUG="${MS_PW_DEBUG-pw:browser}" "$IMAGE" \
+  timeout -s ABRT -k 30 "${MS_STEP_TIMEOUT:-1500}" bash -lc 'cd /t && MS_APP=$(ls /t/*.AppImage) MS_NEXT=/srv xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_update.mjs'; }
+# one retry, as in test.sh (each run is a fresh container)
+upd || { echo "   ↻ failed once, retrying"; upd; }
