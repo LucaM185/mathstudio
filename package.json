@@ -1,7 +1,7 @@
 {
   "name": "mathstudio",
   "productName": "MathStudio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A visual IDE for ManimGL animations",
   "repository": {
     "type": "git",
