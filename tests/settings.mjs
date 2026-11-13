@@ -29,12 +29,16 @@ const launch = async () => {
   return { app, win };
 };
 const S = (win, f) => win.evaluate(f);
-const frameW = async (win) => {
-  // a fresh idle frame for the current settings
+// a fresh idle frame for the current settings: waits until its width is in [min, max] (the re-render
+// after a quality change can take several seconds on software GL in CI), then returns it either way
+const frameW = async (win, { min = 0, max = Infinity } = {}) => {
   await win.waitForTimeout(300);
-  await win.waitForFunction(() => !!window.__ms.store.getState().meta, null, { timeout: 60000 });
-  await win.waitForTimeout(1500);
-  return S(win, () => window.__ms.store.getState().meta.w);
+  await win.waitForFunction(({ min, max }) => {
+    const w = window.__ms.store.getState().meta?.w;
+    return w != null && w >= min && w <= max;
+  }, { min, max: max === Infinity ? 1e9 : max }, { timeout: 60000 }).catch(() => {});
+  await win.waitForTimeout(500);
+  return S(win, () => window.__ms.store.getState().meta?.w ?? 0);
 };
 
 {
@@ -78,9 +82,9 @@ const frameW = async (win) => {
   await shot(win, 'settings_key.png');
 
   // quality: Low caps the preview, persisted
-  const wHigh = await (async () => { await win.click('[data-testid=settings-quality-high]'); return frameW(win); })();
+  const wHigh = await (async () => { await win.click('[data-testid=settings-quality-high]'); return frameW(win, { min: 961 }); })();
   await win.click('[data-testid=settings-quality-low]');
-  const wLow = await frameW(win);
+  const wLow = await frameW(win, { max: 960 });
   check(wLow <= 960, `Low caps the idle preview at 960 px (got ${wLow})`);
   check(wHigh > wLow, `High renders larger than Low (${wHigh} > ${wLow})`);
   check(JSON.parse(fs.readFileSync(SETTINGS, 'utf8')).quality === 'low', 'quality saved to settings.json');

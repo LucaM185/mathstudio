@@ -17,14 +17,17 @@ run() { docker run --rm --platform linux/amd64 --shm-size=1g -v "$OUT:/out" -e M
 # Electron tests get one retry: in CI containers Chromium's startup now and then stalls before
 # DevTools comes up (electron.launch timeout). A real breakage fails twice; a retry shows in the log.
 run_retry() { run "$1" && return 0; echo "   ↻ failed once, retrying"; run "$1"; }
-fail=0
+fail=0; failed=()
 echo "== engine tests with the bundled Python (.deb install)"
-run 'cp -r /opt/MathStudio/resources/engine /tmp/eng && cp -r /t/engine-tests /tmp/eng/tests && cd /tmp/eng && xvfb-run -a -s "-screen 0 1920x1080x24" /opt/MathStudio/resources/python/bin/python3 -W ignore tests/test_engine.py --export' || fail=1
+run 'cp -r /opt/MathStudio/resources/engine /tmp/eng && cp -r /t/engine-tests /tmp/eng/tests && cd /tmp/eng && xvfb-run -a -s "-screen 0 1920x1080x24" /opt/MathStudio/resources/python/bin/python3 -W ignore tests/test_engine.py --export' || { fail=1; failed+=('engine tests (.deb)'); }
 echo "== .deb: Linux smoke test"
-run_retry 'cd /t && MS_TAG=deb MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
+run_retry 'cd /t && MS_TAG=deb MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || { fail=1; failed+=('.deb smoke test'); }
 echo "== .deb: Settings tab test"
-run_retry 'cd /t && MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 2560x1440x24" node tests/settings.mjs' || fail=1
+run_retry 'cd /t && MS_APP=/opt/MathStudio/mathstudio xvfb-run -a -s "-screen 0 2560x1440x24" node tests/settings.mjs' || { fail=1; failed+=('.deb Settings test'); }
 echo "== AppImage: Linux smoke test"
-run_retry 'cd /t && APPIMAGE_EXTRACT_AND_RUN=1 MS_TAG=appimage MS_APP=$(ls /t/*.AppImage) xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || fail=1
-[ $fail = 0 ] && echo "LINUX TESTS PASS" || echo "LINUX TESTS FAILED"
+run_retry 'cd /t && APPIMAGE_EXTRACT_AND_RUN=1 MS_TAG=appimage MS_APP=$(ls /t/*.AppImage) xvfb-run -a -s "-screen 0 1920x1080x24" node tests/linux_smoke.mjs' || { fail=1; failed+=('AppImage smoke test'); }
+if [ $fail = 0 ]; then echo "LINUX TESTS PASS"; else
+  echo "LINUX TESTS FAILED: ${failed[*]}"
+  for f in "${failed[@]}"; do echo "::error title=Linux test failed::$f (search the log for its == section and ✗ lines)"; done
+fi
 exit $fail
