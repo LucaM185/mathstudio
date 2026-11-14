@@ -312,6 +312,33 @@ export function orientMatrix(o: Orient): M3 {
   return mm(axisRot('y', o.ry), mm(axisRot('x', o.rx), axisRot('z', o.rotation)));
 }
 
+export const axisMatrix = axisRot;
+
+/**
+ * Rot X / Rot Y / Rotation (degrees) of a rotation matrix, the inverse of orientMatrix. Of the
+ * equivalent angle triples, returns the one closest to `ref`, so turning a clip step by step never
+ * makes its numbers jump by a full turn (which keyframes would animate as a spin).
+ */
+export function orientFromMatrix(m: M3, ref: Orient = { rotation: 0, rx: 0, ry: 0 }): Orient {
+  const s = Math.max(-1, Math.min(1, -m[1][2]));
+  const near = (o: Orient): Orient => ({ rx: nearestTurn(o.rx, ref.rx), ry: nearestTurn(o.ry, ref.ry), rotation: nearestTurn(o.rotation, ref.rotation) });
+  if (Math.abs(s) > 1 - 1e-9) {
+    // tipped exactly ±90°: Rot Y and Rotation turn about the same axis; keep Rotation, solve Rot Y
+    const rx = s > 0 ? 90 : -90;
+    const ry = s > 0 ? ref.rotation + Math.atan2(m[0][1], m[0][0]) / DEG : Math.atan2(-m[0][1], m[0][0]) / DEG - ref.rotation;
+    return near({ rx, ry, rotation: ref.rotation });
+  }
+  const a = Math.asin(s) / DEG, b = Math.atan2(m[0][2], m[2][2]) / DEG, c = Math.atan2(m[1][0], m[1][1]) / DEG;
+  const dist = (o: Orient) => Math.abs(o.rx - ref.rx) + Math.abs(o.ry - ref.ry) + Math.abs(o.rotation - ref.rotation);
+  const p = near({ rx: a, ry: b, rotation: c }), q = near({ rx: 180 - a, ry: b + 180, rotation: c + 180 });
+  return dist(q) < dist(p) - 1e-9 ? q : p;
+}
+
+/** `o` turned by `deg` about a world axis through the clip's centre (right-handed). */
+export function turnWorld(o: Orient, axis: Axis, deg: number, ref: Orient = o): Orient {
+  return orientFromMatrix(mm(axisRot(axis, deg), orientMatrix(o)), ref);
+}
+
 /** True when the clip has a 3D orientation (not lying in a plane parallel to XY). */
 export const isTilted = (tr: { rx?: number; ry?: number }) => Math.abs(tr.rx || 0) > 1e-9 || Math.abs(tr.ry || 0) > 1e-9;
 
