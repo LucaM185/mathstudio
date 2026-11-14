@@ -44,7 +44,7 @@
     "test:history": "vite build && node tests/project_history.mjs",
     "test:perf": "vite build && node tests/perf_playback.mjs --min-fps 15",
     "test:updates": "vite build && node tests/updates.mjs",
-    "release": "npm version patch -m \"Release %s\" && git push --follow-tags",
+    "release": "scripts/release.sh",
     "test:linux-update": "packaging/linux/test-update.sh"
   },
   "dependencies": {

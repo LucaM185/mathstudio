@@ -118,8 +118,11 @@ the timeline.
 ## Releases and updates
 
 ```bash
-npm run release      # bump the patch version, tag vX.Y.Z, push → GitHub Actions does the rest
+npm run release              # patch bump (or: minor | major); add --no-mac to skip the local Mac build, --dry to only check
 ```
+
+`scripts/release.sh` checks (on main, clean tree, up to date, typecheck), bumps the version, tags
+vX.Y.Z and pushes — then builds the signed Mac app and installs it in /Applications.
 
 `.github/workflows/release.yml` builds the Linux packages, tests them in a clean Ubuntu container
 (including a real AppImage self-update), then publishes a GitHub Release with the AppImage, the
